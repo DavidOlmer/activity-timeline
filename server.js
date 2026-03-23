@@ -7,11 +7,11 @@ const PORT = 3201;
 
 // PostgreSQL connection
 const pool = new Pool({
-  host: '127.0.0.1',
-  port: 54329,
-  user: 'paperclip',
-  password: 'paperclip',
-  database: 'paperclip'
+  host: process.env.DB_HOST || '127.0.0.1',
+  port: parseInt(process.env.DB_PORT) || 54329,
+  user: process.env.DB_USER || 'paperclip',
+  password: process.env.DB_PASSWORD || '',
+  database: process.env.DB_NAME || 'paperclip'
 });
 
 // ============================================
