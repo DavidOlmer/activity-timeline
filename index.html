@@ -1,0 +1,729 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>🐺 Agent Activity Timeline</title>
+  <style>
+    :root {
+      --bg-dark: #0d1117;
+      --bg-card: #161b22;
+      --bg-hover: #21262d;
+      --border: #30363d;
+      --text-primary: #e6edf3;
+      --text-secondary: #8b949e;
+      --accent: #ff6b35;
+      --success: #3fb950;
+      --error: #f85149;
+      --warning: #d29922;
+      --info: #58a6ff;
+    }
+    
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg-dark);
+      color: var(--text-primary);
+      line-height: 1.5;
+      min-height: 100vh;
+    }
+    
+    .header {
+      background: var(--bg-card);
+      border-bottom: 1px solid var(--border);
+      padding: 1rem 2rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    
+    .header h1 {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 1.5rem;
+    }
+    
+    .header h1 span { color: var(--accent); }
+    
+    .status-badge {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.5rem 1rem;
+      background: var(--bg-hover);
+      border-radius: 20px;
+      font-size: 0.875rem;
+    }
+    
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--success);
+      animation: pulse 2s infinite;
+    }
+    
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+    
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 2rem;
+      display: grid;
+      grid-template-columns: 280px 1fr;
+      gap: 2rem;
+    }
+    
+    /* Sidebar / Filters */
+    .sidebar {
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+    }
+    
+    .filter-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1rem;
+    }
+    
+    .filter-card h3 {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      color: var(--text-secondary);
+      margin-bottom: 0.75rem;
+      letter-spacing: 0.05em;
+    }
+    
+    .filter-btn {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      width: 100%;
+      padding: 0.5rem 0.75rem;
+      background: none;
+      border: none;
+      color: var(--text-primary);
+      font-size: 0.875rem;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: background 0.15s;
+      text-align: left;
+    }
+    
+    .filter-btn:hover { background: var(--bg-hover); }
+    .filter-btn.active { background: var(--accent); color: white; }
+    
+    .filter-btn .count {
+      margin-left: auto;
+      background: var(--bg-hover);
+      padding: 0.125rem 0.5rem;
+      border-radius: 10px;
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+    }
+    
+    .filter-btn.active .count {
+      background: rgba(255,255,255,0.2);
+      color: white;
+    }
+    
+    .agent-icon {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background: var(--bg-hover);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+    }
+    
+    /* Stats Cards */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+    }
+    
+    .stat-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1rem;
+    }
+    
+    .stat-card .label {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      color: var(--text-secondary);
+      margin-bottom: 0.25rem;
+    }
+    
+    .stat-card .value {
+      font-size: 1.75rem;
+      font-weight: 600;
+    }
+    
+    .stat-card .sub {
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+    }
+    
+    /* Timeline */
+    .timeline {
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+    }
+    
+    .timeline-event {
+      display: grid;
+      grid-template-columns: 100px 40px 1fr;
+      gap: 0;
+      padding: 0;
+      position: relative;
+    }
+    
+    .event-time {
+      padding: 1rem 0;
+      text-align: right;
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+      padding-right: 1rem;
+    }
+    
+    .event-time .date {
+      display: block;
+      font-weight: 500;
+    }
+    
+    .event-connector {
+      position: relative;
+      display: flex;
+      justify-content: center;
+    }
+    
+    .event-connector::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      width: 2px;
+      background: var(--border);
+    }
+    
+    .event-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: var(--bg-card);
+      border: 2px solid var(--border);
+      position: relative;
+      z-index: 1;
+      margin-top: 1.25rem;
+    }
+    
+    .event-dot.succeeded { border-color: var(--success); background: var(--success); }
+    .event-dot.failed { border-color: var(--error); background: var(--error); }
+    .event-dot.running { border-color: var(--info); background: var(--info); animation: pulse 1s infinite; }
+    .event-dot.activity { border-color: var(--warning); background: var(--warning); }
+    
+    .event-content {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1rem;
+      margin: 0.5rem 0;
+      transition: border-color 0.15s;
+    }
+    
+    .event-content:hover {
+      border-color: var(--accent);
+    }
+    
+    .event-header {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      margin-bottom: 0.5rem;
+    }
+    
+    .event-agent {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-weight: 500;
+    }
+    
+    .event-badge {
+      padding: 0.125rem 0.5rem;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      font-weight: 500;
+      text-transform: uppercase;
+    }
+    
+    .event-badge.succeeded { background: rgba(63, 185, 80, 0.2); color: var(--success); }
+    .event-badge.failed { background: rgba(248, 81, 73, 0.2); color: var(--error); }
+    .event-badge.running { background: rgba(88, 166, 255, 0.2); color: var(--info); }
+    .event-badge.activity { background: rgba(210, 153, 34, 0.2); color: var(--warning); }
+    
+    .event-title {
+      font-size: 0.875rem;
+      margin-bottom: 0.5rem;
+    }
+    
+    .event-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1rem;
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+    }
+    
+    .event-meta span {
+      display: flex;
+      align-items: center;
+      gap: 0.25rem;
+    }
+    
+    .event-details {
+      margin-top: 0.75rem;
+      padding-top: 0.75rem;
+      border-top: 1px solid var(--border);
+      font-size: 0.8125rem;
+    }
+    
+    .event-error {
+      color: var(--error);
+      background: rgba(248, 81, 73, 0.1);
+      padding: 0.5rem;
+      border-radius: 4px;
+      font-family: monospace;
+      font-size: 0.75rem;
+      word-break: break-word;
+    }
+    
+    .event-result {
+      background: var(--bg-hover);
+      padding: 0.5rem;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      max-height: 120px;
+      overflow-y: auto;
+    }
+    
+    /* Load More */
+    .load-more {
+      text-align: center;
+      padding: 2rem;
+    }
+    
+    .load-more button {
+      padding: 0.75rem 2rem;
+      background: var(--accent);
+      color: white;
+      border: none;
+      border-radius: 6px;
+      font-size: 0.875rem;
+      cursor: pointer;
+      transition: opacity 0.15s;
+    }
+    
+    .load-more button:hover { opacity: 0.9; }
+    .load-more button:disabled { opacity: 0.5; cursor: not-allowed; }
+    
+    /* Empty State */
+    .empty-state {
+      text-align: center;
+      padding: 4rem 2rem;
+      color: var(--text-secondary);
+    }
+    
+    .empty-state .icon {
+      font-size: 3rem;
+      margin-bottom: 1rem;
+    }
+    
+    /* Responsive */
+    @media (max-width: 900px) {
+      .container {
+        grid-template-columns: 1fr;
+      }
+      .sidebar {
+        order: 1;
+      }
+      .stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+  </style>
+</head>
+<body>
+  <header class="header">
+    <h1>🐺 <span>Agent Activity</span> Timeline</h1>
+    <div class="status-badge">
+      <div class="status-dot"></div>
+      <span id="connectionStatus">Connecting...</span>
+    </div>
+  </header>
+  
+  <div class="container">
+    <aside class="sidebar">
+      <div class="filter-card">
+        <h3>Status</h3>
+        <button class="filter-btn active" data-filter="status" data-value="">
+          All <span class="count" id="countAll">-</span>
+        </button>
+        <button class="filter-btn" data-filter="status" data-value="succeeded">
+          ✓ Succeeded <span class="count" id="countSucceeded">-</span>
+        </button>
+        <button class="filter-btn" data-filter="status" data-value="failed">
+          ✕ Failed <span class="count" id="countFailed">-</span>
+        </button>
+        <button class="filter-btn" data-filter="status" data-value="running">
+          ◎ Running <span class="count" id="countRunning">-</span>
+        </button>
+      </div>
+      
+      <div class="filter-card">
+        <h3>Event Type</h3>
+        <button class="filter-btn active" data-filter="type" data-value="all">
+          All Events
+        </button>
+        <button class="filter-btn" data-filter="type" data-value="runs">
+          Agent Runs
+        </button>
+        <button class="filter-btn" data-filter="type" data-value="activity">
+          Activity Log
+        </button>
+      </div>
+      
+      <div class="filter-card">
+        <h3>Agents</h3>
+        <div id="agentFilters">
+          <button class="filter-btn active" data-filter="agent" data-value="">
+            All Agents
+          </button>
+        </div>
+      </div>
+      
+      <div class="filter-card">
+        <h3>Time Range</h3>
+        <button class="filter-btn active" data-filter="since" data-value="">
+          All Time
+        </button>
+        <button class="filter-btn" data-filter="since" data-value="1h">
+          Last Hour
+        </button>
+        <button class="filter-btn" data-filter="since" data-value="24h">
+          Last 24 Hours
+        </button>
+        <button class="filter-btn" data-filter="since" data-value="7d">
+          Last 7 Days
+        </button>
+      </div>
+    </aside>
+    
+    <main>
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="label">Total Runs (24h)</div>
+          <div class="value" id="statRuns24h">-</div>
+          <div class="sub" id="statRunsHour">- this hour</div>
+        </div>
+        <div class="stat-card">
+          <div class="label">Success Rate</div>
+          <div class="value" id="statSuccessRate">-%</div>
+          <div class="sub" id="statSuccessCount">-/- succeeded</div>
+        </div>
+        <div class="stat-card">
+          <div class="label">Failed</div>
+          <div class="value" id="statFailed">-</div>
+          <div class="sub" id="statFailedPct">-% of total</div>
+        </div>
+        <div class="stat-card">
+          <div class="label">Running Now</div>
+          <div class="value" id="statRunning">-</div>
+          <div class="sub">active processes</div>
+        </div>
+      </div>
+      
+      <div class="timeline" id="timeline">
+        <div class="empty-state">
+          <div class="icon">📡</div>
+          <div>Loading timeline...</div>
+        </div>
+      </div>
+      
+      <div class="load-more" id="loadMore" style="display: none;">
+        <button onclick="loadMore()">Load More</button>
+      </div>
+    </main>
+  </div>
+  
+  <script>
+    // State
+    let filters = { status: '', agent: '', since: '', type: 'all' };
+    let offset = 0;
+    let total = 0;
+    let pollInterval = null;
+    
+    // Helpers
+    function formatTime(dateStr) {
+      const d = new Date(dateStr);
+      return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    }
+    
+    function formatDate(dateStr) {
+      const d = new Date(dateStr);
+      const today = new Date();
+      if (d.toDateString() === today.toDateString()) return 'Today';
+      const yesterday = new Date(today);
+      yesterday.setDate(yesterday.getDate() - 1);
+      if (d.toDateString() === yesterday.toDateString()) return 'Yesterday';
+      return d.toLocaleDateString([], { month: 'short', day: 'numeric' });
+    }
+    
+    function formatDuration(start, end) {
+      if (!end) return 'running...';
+      const ms = new Date(end) - new Date(start);
+      const secs = Math.floor(ms / 1000);
+      if (secs < 60) return `${secs}s`;
+      const mins = Math.floor(secs / 60);
+      if (mins < 60) return `${mins}m ${secs % 60}s`;
+      const hours = Math.floor(mins / 60);
+      return `${hours}h ${mins % 60}m`;
+    }
+    
+    function getSinceDate(value) {
+      if (!value) return null;
+      const now = new Date();
+      if (value === '1h') return new Date(now - 3600000);
+      if (value === '24h') return new Date(now - 86400000);
+      if (value === '7d') return new Date(now - 604800000);
+      return null;
+    }
+    
+    // API
+    async function fetchTimeline(append = false) {
+      const params = new URLSearchParams();
+      params.set('limit', '50');
+      params.set('offset', append ? offset : 0);
+      if (filters.status) params.set('status', filters.status);
+      if (filters.agent) params.set('agent', filters.agent);
+      if (filters.type) params.set('type', filters.type);
+      const since = getSinceDate(filters.since);
+      if (since) params.set('since', since.toISOString());
+      
+      try {
+        const res = await fetch(`/api/timeline?${params}`);
+        const data = await res.json();
+        offset = data.offset + data.events.length;
+        total = data.total;
+        renderTimeline(data.events, append);
+        document.getElementById('connectionStatus').textContent = 'Live';
+      } catch (err) {
+        document.getElementById('connectionStatus').textContent = 'Disconnected';
+        console.error(err);
+      }
+    }
+    
+    async function fetchStats() {
+      try {
+        const res = await fetch('/api/stats');
+        const data = await res.json();
+        renderStats(data);
+      } catch (err) {
+        console.error(err);
+      }
+    }
+    
+    async function fetchAgents() {
+      try {
+        const res = await fetch('/api/agents');
+        const data = await res.json();
+        renderAgentFilters(data.agents);
+      } catch (err) {
+        console.error(err);
+      }
+    }
+    
+    // Render
+    function renderStats(data) {
+      const o = data.overview;
+      document.getElementById('statRuns24h').textContent = o.last_24h || 0;
+      document.getElementById('statRunsHour').textContent = `${o.last_hour || 0} this hour`;
+      
+      const rate = o.total_runs > 0 ? Math.round((o.succeeded / o.total_runs) * 100) : 0;
+      document.getElementById('statSuccessRate').textContent = `${rate}%`;
+      document.getElementById('statSuccessCount').textContent = `${o.succeeded}/${o.total_runs} succeeded`;
+      
+      document.getElementById('statFailed').textContent = o.failed || 0;
+      const failPct = o.total_runs > 0 ? Math.round((o.failed / o.total_runs) * 100) : 0;
+      document.getElementById('statFailedPct').textContent = `${failPct}% of total`;
+      
+      document.getElementById('statRunning').textContent = o.running || 0;
+      
+      // Update filter counts
+      document.getElementById('countAll').textContent = o.total_runs || 0;
+      document.getElementById('countSucceeded').textContent = o.succeeded || 0;
+      document.getElementById('countFailed').textContent = o.failed || 0;
+      document.getElementById('countRunning').textContent = o.running || 0;
+    }
+    
+    function renderAgentFilters(agents) {
+      const container = document.getElementById('agentFilters');
+      let html = `<button class="filter-btn ${!filters.agent ? 'active' : ''}" data-filter="agent" data-value="">All Agents</button>`;
+      
+      for (const agent of agents) {
+        const icon = agent.icon || '🤖';
+        html += `
+          <button class="filter-btn ${filters.agent === agent.id ? 'active' : ''}" data-filter="agent" data-value="${agent.id}">
+            <span class="agent-icon">${icon}</span>
+            ${agent.name}
+          </button>
+        `;
+      }
+      
+      container.innerHTML = html;
+      attachFilterListeners();
+    }
+    
+    function renderTimeline(events, append = false) {
+      const container = document.getElementById('timeline');
+      
+      if (!append && events.length === 0) {
+        container.innerHTML = `
+          <div class="empty-state">
+            <div class="icon">📭</div>
+            <div>No events found matching your filters</div>
+          </div>
+        `;
+        document.getElementById('loadMore').style.display = 'none';
+        return;
+      }
+      
+      let html = append ? container.innerHTML : '';
+      
+      for (const event of events) {
+        const isRun = event.event_type === 'run';
+        const status = isRun ? event.status : 'activity';
+        const agentIcon = event.agent_icon || '🤖';
+        const agentName = event.agent_name || 'Unknown Agent';
+        
+        let title = '';
+        let details = '';
+        
+        if (isRun) {
+          title = `${event.invocation_source || 'Run'} ${event.trigger_detail ? `(${event.trigger_detail})` : ''}`;
+          
+          if (event.error) {
+            details = `<div class="event-error">${event.error_code ? `[${event.error_code}] ` : ''}${event.error}</div>`;
+          } else if (event.result_json?.result) {
+            details = `<div class="event-result">${event.result_json.result.substring(0, 500)}${event.result_json.result.length > 500 ? '...' : ''}</div>`;
+          }
+          
+          if (event.usage_json) {
+            const u = event.usage_json;
+            details += `<div style="margin-top: 0.5rem; font-size: 0.75rem; color: var(--text-secondary);">
+              Tokens: ${(u.inputTokens || 0).toLocaleString()} in / ${(u.outputTokens || 0).toLocaleString()} out
+              ${u.costUsd ? ` · $${u.costUsd.toFixed(4)}` : ''}
+            </div>`;
+          }
+        } else {
+          title = `${event.action} ${event.entity_type || ''}`;
+          if (event.details) {
+            details = `<div class="event-result">${JSON.stringify(event.details, null, 2)}</div>`;
+          }
+        }
+        
+        html += `
+          <div class="timeline-event">
+            <div class="event-time">
+              <span class="date">${formatDate(event.started_at)}</span>
+              ${formatTime(event.started_at)}
+            </div>
+            <div class="event-connector">
+              <div class="event-dot ${status}"></div>
+            </div>
+            <div class="event-content">
+              <div class="event-header">
+                <div class="event-agent">
+                  <span class="agent-icon">${agentIcon}</span>
+                  ${agentName}
+                </div>
+                <span class="event-badge ${status}">${status}</span>
+              </div>
+              <div class="event-title">${title}</div>
+              <div class="event-meta">
+                ${isRun && event.finished_at ? `<span>⏱ ${formatDuration(event.started_at, event.finished_at)}</span>` : ''}
+                ${event.exit_code !== null && event.exit_code !== undefined ? `<span>Exit: ${event.exit_code}</span>` : ''}
+                ${event.run_id ? `<span>Run: ${event.run_id.substring(0, 8)}</span>` : ''}
+              </div>
+              ${details ? `<div class="event-details">${details}</div>` : ''}
+            </div>
+          </div>
+        `;
+      }
+      
+      container.innerHTML = html;
+      
+      // Show/hide load more
+      document.getElementById('loadMore').style.display = offset < total ? 'block' : 'none';
+    }
+    
+    // Actions
+    function loadMore() {
+      fetchTimeline(true);
+    }
+    
+    function setFilter(type, value) {
+      filters[type] = value;
+      offset = 0;
+      fetchTimeline();
+    }
+    
+    function attachFilterListeners() {
+      document.querySelectorAll('.filter-btn').forEach(btn => {
+        btn.onclick = () => {
+          const type = btn.dataset.filter;
+          const value = btn.dataset.value;
+          
+          // Update active state
+          document.querySelectorAll(`[data-filter="${type}"]`).forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+          
+          setFilter(type, value);
+        };
+      });
+    }
+    
+    // Init
+    async function init() {
+      await Promise.all([fetchAgents(), fetchStats()]);
+      await fetchTimeline();
+      
+      // Poll every 5 seconds
+      pollInterval = setInterval(() => {
+        fetchStats();
+        if (offset === 0) fetchTimeline(); // Only refresh if at top
+      }, 5000);
+    }
+    
+    init();
+    attachFilterListeners();
+  </script>
+</body>
+</html>
